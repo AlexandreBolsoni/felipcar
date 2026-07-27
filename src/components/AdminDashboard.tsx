@@ -1,9 +1,10 @@
 import React, { Component } from 'react';
 import { Check, X, Clock, Plus, Trash2, Calendar as CalendarIcon, List, ChevronUp, User, LogOut, AlertTriangle, ShieldCheck, DollarSign, MessageSquare, Eye, EyeOff, CornerDownRight, Star, Edit, Sparkles, Image as ImageIcon, FileText, Layers, CheckCircle2, Upload, ArrowRight, ArrowLeft, Wand2, Info } from 'lucide-react';
-import { MockServiceRepository } from '../infrastructure/repositories/MockServiceRepository';
-import { MockAppointmentRepository } from '../infrastructure/repositories/MockAppointmentRepository';
-import { MockReviewRepository } from '../infrastructure/repositories/MockReviewRepository';
-import { MockBusinessHoursRepository, BusinessHoursConfig } from '../infrastructure/repositories/MockBusinessHoursRepository';
+import { FirestoreServiceRepository } from '../infrastructure/repositories/FirestoreServiceRepository';
+import { FirestoreAppointmentRepository } from '../infrastructure/repositories/FirestoreAppointmentRepository';
+import { FirestoreReviewRepository } from '../infrastructure/repositories/FirestoreReviewRepository';
+import { FirestoreBusinessHoursRepository } from '../infrastructure/repositories/FirestoreBusinessHoursRepository';
+import type { BusinessHoursConfig } from '../infrastructure/repositories/MockBusinessHoursRepository';
 import { Service, DurationUnit, PriceType } from '../domain/entities/Service';
 import { Appointment } from '../domain/entities/Appointment';
 import { Review } from '../domain/entities/Review';
@@ -21,6 +22,7 @@ type AdminState = {
     // Tab 1 state
     selectedDate: string;
     appointments: Appointment[];
+    allAppointments: Appointment[];
     businessHours: BusinessHoursConfig;
     showHoursSaveToast: boolean;
     // Tab 2 state
@@ -57,10 +59,10 @@ type AdminState = {
 export class AdminDashboard extends Component<AdminProps, AdminState> {
     declare state: AdminState;
 
-    private serviceRepo = MockServiceRepository.getInstance();
-    private appointmentRepo = MockAppointmentRepository.getInstance();
-    private reviewRepo = MockReviewRepository.getInstance();
-    private businessHoursRepo = MockBusinessHoursRepository.getInstance();
+    private serviceRepo = new FirestoreServiceRepository();
+    private appointmentRepo = new FirestoreAppointmentRepository();
+    private reviewRepo = new FirestoreReviewRepository();
+    private businessHoursRepo = new FirestoreBusinessHoursRepository();
     private mediaQueryListener?: (e: MediaQueryListEvent) => void;
 
     constructor(props: AdminProps) {
@@ -73,7 +75,8 @@ export class AdminDashboard extends Component<AdminProps, AdminState> {
             showProfileMenu: false,
             selectedDate: today,
             appointments: [],
-            businessHours: this.businessHoursRepo.get(),
+            allAppointments: [],
+            businessHours: null as unknown as BusinessHoursConfig,
             showHoursSaveToast: false,
             services: [],
             showServiceModal: false,
@@ -103,8 +106,8 @@ export class AdminDashboard extends Component<AdminProps, AdminState> {
         };
     }
 
-    handleUpdateBusinessHours = (fields: Partial<BusinessHoursConfig>) => {
-        const updated = this.businessHoursRepo.update(fields);
+    handleUpdateBusinessHours = async (fields: Partial<BusinessHoursConfig>) => {
+        const updated = await this.businessHoursRepo.update(fields);
         this.setState({ businessHours: updated, showHoursSaveToast: true });
         setTimeout(() => {
             this.setState({ showHoursSaveToast: false });
@@ -137,23 +140,25 @@ export class AdminDashboard extends Component<AdminProps, AdminState> {
         }
     }
 
-    loadData = () => {
-        this.setState({
-            services: this.serviceRepo.getAll(),
-            appointments: this.appointmentRepo.getByDate(this.state.selectedDate),
-            reviews: this.reviewRepo.getAll(),
-            businessHours: this.businessHoursRepo.get()
-        });
+    loadData = async () => {
+        const [services, appointments, reviews, businessHours, allAppointments] = await Promise.all([
+            this.serviceRepo.getAll(),
+            this.appointmentRepo.getByDate(this.state.selectedDate),
+            this.reviewRepo.getAll(),
+            this.businessHoursRepo.get(),
+            this.appointmentRepo.getAll(),
+        ]);
+        this.setState({ services, appointments, reviews, businessHours, allAppointments });
     }
 
     handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         this.setState({ selectedDate: e.target.value }, this.loadData);
     }
 
-    handleStatusChange = (appointment: Appointment, action: 'COMPLETE' | 'CANCEL') => {
+    handleStatusChange = async (appointment: Appointment, action: 'COMPLETE' | 'CANCEL') => {
         if (action === 'COMPLETE') appointment.complete();
         if (action === 'CANCEL') appointment.cancel();
-        this.appointmentRepo.update(appointment);
+        await this.appointmentRepo.update(appointment);
         this.loadData();
     }
 
@@ -195,7 +200,7 @@ export class AdminDashboard extends Component<AdminProps, AdminState> {
         });
     }
 
-    handleSaveService = () => {
+    handleSaveService = async () => {
         const { 
             editingServiceId,
             newServiceTitle, 
@@ -233,9 +238,9 @@ export class AdminDashboard extends Component<AdminProps, AdminState> {
             );
 
             if (editingServiceId) {
-                this.serviceRepo.update(service);
+                await this.serviceRepo.update(service);
             } else {
-                this.serviceRepo.add(service);
+                await this.serviceRepo.add(service);
             }
 
             this.setState({
@@ -342,14 +347,14 @@ export class AdminDashboard extends Component<AdminProps, AdminState> {
         });
     }
 
-    handleDeleteService = (id: string) => {
+    handleDeleteService = async (id: string) => {
         if (window.confirm('Tem certeza que deseja excluir este serviço?')) {
-            this.serviceRepo.remove(id);
+            await this.serviceRepo.remove(id);
             this.loadData();
         }
     }
 
-    handleAdminSchedule = () => {
+    handleAdminSchedule = async () => {
         const { selectedDate, adminSelectedHour, adminServiceId, adminClientName, adminClientPhone, adminCarModel, adminCarPlate, services, appointments } = this.state;
         if (!adminSelectedHour || !adminServiceId || !adminClientName || !adminClientPhone || !adminCarModel || !adminCarPlate) {
             alert('Preencha todos os campos!');
@@ -376,7 +381,7 @@ export class AdminDashboard extends Component<AdminProps, AdminState> {
             adminSelectedHour
         );
 
-        this.appointmentRepo.add(newAppointment);
+        await this.appointmentRepo.add(newAppointment);
         this.setState({
             showAdminScheduleModal: false,
             adminClientName: '',
@@ -613,9 +618,8 @@ export class AdminDashboard extends Component<AdminProps, AdminState> {
     }
 
     renderAgenda() {
-        const { appointments, services, selectedDate, theme, businessHours, showHoursSaveToast } = this.state;
+        const { appointments, services, selectedDate, theme, businessHours, showHoursSaveToast, allAppointments: allRepoAppointments } = this.state;
         const isDark = theme === 'dark';
-        const allRepoAppointments = this.appointmentRepo.getAll();
         const operatingHours = getOperatingHours(businessHours);
 
         // Format date display
@@ -1562,13 +1566,13 @@ export class AdminDashboard extends Component<AdminProps, AdminState> {
         );
     }
 
-    handleToggleHideReview = (id: string) => {
-        this.reviewRepo.toggleHidden(id);
+    handleToggleHideReview = async (id: string) => {
+        await this.reviewRepo.toggleHidden(id);
         this.loadData();
     }
 
-    handleSaveReviewReply = (id: string) => {
-        this.reviewRepo.reply(id, this.state.replyText.trim() || null);
+    handleSaveReviewReply = async (id: string) => {
+        await this.reviewRepo.reply(id, this.state.replyText.trim() || null);
         this.setState({ replyingReviewId: null, replyText: '' }, this.loadData);
     }
 

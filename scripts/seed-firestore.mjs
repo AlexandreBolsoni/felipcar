@@ -1,4 +1,18 @@
-import { db } from './firebaseAdmin';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, doc, setDoc, addDoc, getDocs, getDoc, Timestamp } from 'firebase/firestore';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCTSTlJ7oAug_uCw2-AlSLMP-y91It30rs",
+  authDomain: "felipcar-estetica.firebaseapp.com",
+  projectId: "felipcar-estetica",
+  storageBucket: "felipcar-estetica.firebasestorage.app",
+  messagingSenderId: "606117643516",
+  appId: "1:606117643516:web:1fd149151e280b9cba0379",
+  measurementId: "G-8YCLGGD9K6",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 const seedServices = [
   {
@@ -26,7 +40,7 @@ const seedServices = [
     price: 800,
     priceType: 'variable',
     hasDetailedView: true,
-    detailedDescription: `### ETAPAS COMPLETAS DE VITRIFICAÇÃO CERÂMICA:\n1. **Descontaminação da Pintura:** Uso de Clay Bar e descontaminante férrico para remoção total de impurezas.\n2. **Medição de Espessura do Verniz:** Análise micrométrica da camada de tinta.\n3. **Etapa de Corte (Corte Técnico):** Remoção de microrriscos com boinas de lã e compostos Koch Chemie.\n4. **Etapa de Refino & Lustro:** Eliminação de marcas de corte e maximização do brilho.\n5. **Revelador de Hologramas:** Aplicação de Isopropanol (IPA).\n6. **Aplicação do Vitrificador Cerâmico 9H:** Proteção UV, fezes de pássaros e chuvas ácidas.\n7. **Cura Infravermelho:** Secagem técnica com lâmpada infravermelho.`,
+    detailedDescription: `### ETAPAS COMPLETAS DE VITRIFICAÇÃO CERÂMICA:\n1. **Descontaminação da Pintura:** Uso de Clay Bar e descontaminante férrico.\n2. **Medição de Espessura do Verniz:** Análise micrométrica da camada de tinta.\n3. **Etapa de Corte:** Remoção de microrriscos com boinas de lã e compostos Koch Chemie.\n4. **Etapa de Refino & Lustro:** Maximização do brilho espelhado.\n5. **Revelador de Hologramas:** Aplicação de Isopropanol (IPA).\n6. **Aplicação do Vitrificador Cerâmico 9H:** Proteção UV e chuvas ácidas.\n7. **Cura Infravermelho:** Secagem técnica.`,
     detailedImages: [
       'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
@@ -42,9 +56,9 @@ const seedServices = [
     price: 2500,
     priceType: 'variable',
     hasDetailedView: true,
-    detailedDescription: `### DETALHAMENTO DO SERVIÇO PPF & PELÍCULA:\n- **PPF:** Material TPU de alta resistência contra pedriscos e arranhões.\n- **Tecnologia Auto-Regenerativa:** Riscos superficiais somem com água quente ou calor do sol.\n- **Película Térmica de Nanocerâmica:** Bloqueio de até 99% UV e 92% do calor infravermelho.`,
+    detailedDescription: `### DETALHAMENTO PPF & PELÍCULA:\n- **PPF:** Material TPU de alta resistência.\n- **Tecnologia Auto-Regenerativa:** Riscos superficiais somem com água quente.\n- **Película Térmica de Nanocerâmica:** Bloqueio de até 99% UV.`,
     detailedImages: ['https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80'],
-    additionalInfo: 'Garantia oficial de 5 a 10 anos contra amarelamento, bolhas ou descolamento.',
+    additionalInfo: 'Garantia oficial de 5 a 10 anos.',
   },
   {
     title: 'Higienização Interna e Ozonização',
@@ -55,7 +69,7 @@ const seedServices = [
     price: 220,
     priceType: 'fixed',
     hasDetailedView: true,
-    detailedDescription: `### PROCESSO DE HIGIENIZAÇÃO INTERNA:\n1. Extração profunda de ácaros e fungos dos bancos.\n2. Hidratação dos couros com protetor fosco.\n3. Sanitização do ar-condicionado com gerador de Ozônio O3.`,
+    detailedDescription: `### PROCESSO DE HIGIENIZAÇÃO:\n1. Extração profunda de ácaros e fungos.\n2. Hidratação dos couros.\n3. Sanitização com gerador de Ozônio O3.`,
     detailedImages: ['https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=800&q=80'],
     additionalInfo: 'Indicado para carros seminovos, transporte de pets ou fumantes.',
   },
@@ -120,29 +134,29 @@ const seedReviews = [
 async function seed() {
   console.log('Seeding Firestore...');
 
-  const servicesSnapshot = await db.collection('services').get();
-  if (servicesSnapshot.empty) {
-    for (const service of seedServices) {
-      await db.collection('services').add(service);
+  const servicesSnap = await getDocs(collection(db, 'services'));
+  if (servicesSnap.empty) {
+    for (const svc of seedServices) {
+      await addDoc(collection(db, 'services'), svc);
     }
     console.log(`Seeded ${seedServices.length} services`);
   } else {
     console.log('Services already seeded, skipping');
   }
 
-  const reviewsSnapshot = await db.collection('reviews').get();
-  if (reviewsSnapshot.empty) {
-    for (const review of seedReviews) {
-      await db.collection('reviews').add(review);
+  const reviewsSnap = await getDocs(collection(db, 'reviews'));
+  if (reviewsSnap.empty) {
+    for (const rev of seedReviews) {
+      await addDoc(collection(db, 'reviews'), rev);
     }
     console.log(`Seeded ${seedReviews.length} reviews`);
   } else {
     console.log('Reviews already seeded, skipping');
   }
 
-  const hoursDoc = await db.collection('businessHours').doc('current').get();
-  if (!hoursDoc.exists) {
-    await db.collection('businessHours').doc('current').set({
+  const hoursDoc = await getDoc(doc(db, 'businessHours', 'current'));
+  if (!hoursDoc.exists()) {
+    await setDoc(doc(db, 'businessHours', 'current'), {
       startHour: '08:00',
       endHour: '18:00',
       slotIntervalMinutes: 60,
@@ -159,6 +173,10 @@ async function seed() {
   }
 
   console.log('Seed complete!');
+  process.exit(0);
 }
 
-seed().catch(console.error);
+seed().catch(err => {
+  console.error('Seed failed:', err);
+  process.exit(1);
+});

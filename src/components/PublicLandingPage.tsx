@@ -1,9 +1,10 @@
 import React, { Component } from 'react';
 import { Clock, AlertTriangle, CheckCircle2, MapPin, Star, MessageSquare, Send, CornerDownRight, Phone, Navigation, ShieldCheck, ChevronUp, ChevronDown } from 'lucide-react';
-import { MockServiceRepository } from '../infrastructure/repositories/MockServiceRepository';
-import { MockAppointmentRepository } from '../infrastructure/repositories/MockAppointmentRepository';
-import { MockReviewRepository } from '../infrastructure/repositories/MockReviewRepository';
-import { MockBusinessHoursRepository, BusinessHoursConfig } from '../infrastructure/repositories/MockBusinessHoursRepository';
+import { FirestoreServiceRepository } from '../infrastructure/repositories/FirestoreServiceRepository';
+import { FirestoreAppointmentRepository } from '../infrastructure/repositories/FirestoreAppointmentRepository';
+import { FirestoreReviewRepository } from '../infrastructure/repositories/FirestoreReviewRepository';
+import { FirestoreBusinessHoursRepository } from '../infrastructure/repositories/FirestoreBusinessHoursRepository';
+import type { BusinessHoursConfig } from '../infrastructure/repositories/MockBusinessHoursRepository';
 import { Service } from '../domain/entities/Service';
 import { Appointment } from '../domain/entities/Appointment';
 import { Review } from '../domain/entities/Review';
@@ -29,6 +30,9 @@ type PublicState = {
     // Detailed View Modal State
     selectedDetailService: Service | null;
 
+    // All appointments (for calendar)
+    allAppointments: Appointment[];
+
     // Review Form State
     reviews: Review[];
     activeReviewIndex: number;
@@ -43,10 +47,10 @@ type PublicState = {
 export class PublicLandingPage extends Component<{}, PublicState> {
     declare state: PublicState;
 
-    private serviceRepo = MockServiceRepository.getInstance();
-    private appointmentRepo = MockAppointmentRepository.getInstance();
-    private reviewRepo = MockReviewRepository.getInstance();
-    private businessHoursRepo = MockBusinessHoursRepository.getInstance();
+    private serviceRepo = new FirestoreServiceRepository();
+    private appointmentRepo = new FirestoreAppointmentRepository();
+    private reviewRepo = new FirestoreReviewRepository();
+    private businessHoursRepo = new FirestoreBusinessHoursRepository();
 
     constructor(props: {}) {
         super(props);
@@ -62,10 +66,11 @@ export class PublicLandingPage extends Component<{}, PublicState> {
             clientPhone: '',
             carModel: '',
             carPlate: '',
-            businessHours: this.businessHoursRepo.get(),
+            businessHours: null as unknown as BusinessHoursConfig,
 
             selectedDetailService: null,
 
+            allAppointments: [],
             reviews: [],
             activeReviewIndex: 0,
             showReviewForm: false,
@@ -81,29 +86,31 @@ export class PublicLandingPage extends Component<{}, PublicState> {
         this.loadData();
     }
 
-    loadData = () => {
-        this.setState({
-            services: this.serviceRepo.getAll(),
-            appointments: this.appointmentRepo.getByDate(this.state.selectedDate),
-            reviews: this.reviewRepo.getPublicVisible(),
-            businessHours: this.businessHoursRepo.get()
-        });
+    loadData = async () => {
+        const [services, appointments, reviews, businessHours, allAppointments] = await Promise.all([
+            this.serviceRepo.getAll(),
+            this.appointmentRepo.getByDate(this.state.selectedDate),
+            this.reviewRepo.getPublicVisible(),
+            this.businessHoursRepo.get(),
+            this.appointmentRepo.getAll(),
+        ]);
+        this.setState({ services, appointments, reviews, businessHours, allAppointments });
     }
 
     handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         this.setState({ selectedDate: e.target.value }, this.loadData);
     }
 
-    handleSchedule = () => {
-        const { selectedDate, selectedHour, selectedServiceId, clientName, clientPhone, carModel, carPlate, services, appointments } = this.state;
+    handleSchedule = async () => {
+        const { selectedDate, selectedHour, selectedServiceId, clientName, clientPhone, carModel, carPlate, services, appointments, businessHours } = this.state;
         if (!selectedHour || !selectedServiceId || !clientName || !clientPhone || !carModel || !carPlate) {
             alert('Preencha todos os campos!');
             return;
         }
 
         const selectedService = services.find(s => s.id === selectedServiceId);
-        if (selectedService) {
-            const conflict = checkBookingConflict(selectedHour, selectedService.durationMinutes, appointments, services, undefined, this.state.businessHours.endHour);
+        if (selectedService && businessHours) {
+            const conflict = checkBookingConflict(selectedHour, selectedService.durationMinutes, appointments, services, undefined, businessHours.endHour);
             if (conflict.hasConflict) {
                 alert(`Horário indisponível:\n${conflict.reason}`);
                 return;
@@ -121,7 +128,7 @@ export class PublicLandingPage extends Component<{}, PublicState> {
             selectedHour
         );
 
-        this.appointmentRepo.add(newAppointment);
+        await this.appointmentRepo.add(newAppointment);
         alert('Agendamento realizado com sucesso!');
         this.setState({
             showModal: false,
@@ -138,7 +145,7 @@ export class PublicLandingPage extends Component<{}, PublicState> {
         this.setState({ selectedServiceId: serviceId });
     }
 
-    handleSubmitReview = (e: React.FormEvent) => {
+    handleSubmitReview = async (e: React.FormEvent) => {
         e.preventDefault();
         const { newReviewName, newReviewCar, newReviewRating, newReviewComment } = this.state;
 
@@ -159,7 +166,7 @@ export class PublicLandingPage extends Component<{}, PublicState> {
             null
         );
 
-        this.reviewRepo.add(newReview);
+        await this.reviewRepo.add(newReview);
         alert('Sua avaliação foi enviada com sucesso! Obrigado pelo seu comentário.');
 
         this.setState({
@@ -171,8 +178,7 @@ export class PublicLandingPage extends Component<{}, PublicState> {
     }
 
     renderSchedule() {
-        const { appointments, services, selectedDate, businessHours } = this.state;
-        const allAppointments = this.appointmentRepo.getAll();
+        const { appointments, services, selectedDate, businessHours, allAppointments } = this.state;
         const operatingHours = getOperatingHours(businessHours);
         
         return (
