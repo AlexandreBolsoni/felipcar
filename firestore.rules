@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // === REGRAS GERAIS ===
+    // Admin (usuário autenticado) pode ler e escrever tudo
+    function isAdmin() {
+      return request.auth != null;
+    }
+
+    // Qualquer pessoa (autenticada ou não)
+    function isPublic() {
+      return true;
+    }
+
+    // === SERVIÇOS (Catálogo) ===
+    match /services/{serviceId} {
+      // Público: pode ler todos os serviços
+      allow read: if isPublic();
+      // Admin: pode criar, atualizar, excluir
+      allow create, update, delete: if isAdmin();
+    }
+
+    // === AGENDAMENTOS ===
+    match /appointments/{appointmentId} {
+      // Público: pode criar (agendar) e ler (para ver horários ocupados)
+      allow read, create: if isPublic();
+      // Admin: pode atualizar status (completar/cancelar)
+      allow update, delete: if isAdmin();
+    }
+
+    // === AVALIAÇÕES ===
+    match /reviews/{reviewId} {
+      // Público: pode criar e ler apenas avaliações visíveis
+      allow read: if isPublic();
+      allow create: if isPublic();
+      // Admin: pode ocultar/excluir e responder
+      allow update, delete: if isAdmin();
+    }
+
+    // === HORÁRIOS DE FUNCIONAMENTO ===
+    match /businessHours/{docId} {
+      // Público: pode ler
+      allow read: if isPublic();
+      // Admin: pode atualizar
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}
