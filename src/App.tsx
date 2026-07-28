@@ -6,11 +6,15 @@ import { AdminLogin } from './components/AdminLogin';
 import { AdminDashboard } from './components/AdminDashboard';
 import { signOut } from 'firebase/auth';
 import { Menu, X, Shield, Wrench, Calendar, MapPin, Star } from 'lucide-react';
+import { CarLoader } from 'car-loader-top-down';
 
 type AppState = {
     currentView: 'PUBLIC' | 'LOGIN' | 'ADMIN';
     user: User | null;
     authReady: boolean;
+    loadingTimerDone: boolean;
+    adminLoading: boolean;
+    loadingThemeDark: boolean;
     updateKey: number;
     mobileMenuOpen: boolean;
 };
@@ -25,6 +29,9 @@ export default class App extends Component<{}, AppState> {
             currentView: 'PUBLIC',
             user: null,
             authReady: false,
+            loadingTimerDone: false,
+            adminLoading: false,
+            loadingThemeDark: true,
             updateKey: 0,
             mobileMenuOpen: false,
         };
@@ -34,6 +41,13 @@ export default class App extends Component<{}, AppState> {
         this.unsubscribeAuth = onAuthStateChanged(auth, (user) => {
             this.setState({ user, authReady: true });
         });
+        const randomMs = Math.floor(Math.random() * 3001) + 2000;
+        setTimeout(() => {
+            this.setState({ loadingTimerDone: true });
+        }, randomMs);
+        setInterval(() => {
+            this.setState(prev => ({ loadingThemeDark: !prev.loadingThemeDark }));
+        }, 1500);
     }
 
     componentWillUnmount() {
@@ -42,14 +56,22 @@ export default class App extends Component<{}, AppState> {
 
     goToAdmin = () => {
         if (this.state.user) {
-            this.setState(prev => ({ currentView: 'ADMIN', updateKey: prev.updateKey + 1, mobileMenuOpen: false }));
+            this.setState({ adminLoading: true, mobileMenuOpen: false });
+            const randomMs = Math.floor(Math.random() * 3001) + 2000;
+            setTimeout(() => {
+                this.setState(prev => ({ currentView: 'ADMIN', adminLoading: false, updateKey: prev.updateKey + 1 }));
+            }, randomMs);
         } else {
             this.setState({ currentView: 'LOGIN', mobileMenuOpen: false });
         }
     };
 
     handleLoginSuccess = () => {
-        this.setState(prev => ({ currentView: 'ADMIN', updateKey: prev.updateKey + 1 }));
+        this.setState({ adminLoading: true });
+        const randomMs = Math.floor(Math.random() * 3001) + 2000;
+        setTimeout(() => {
+            this.setState(prev => ({ currentView: 'ADMIN', adminLoading: false, updateKey: prev.updateKey + 1 }));
+        }, randomMs);
     };
 
     handleLogout = async () => {
@@ -157,13 +179,41 @@ export default class App extends Component<{}, AppState> {
         );
     }
 
+    renderLoadingScreen(text: string) {
+        const isDark = this.state.loadingThemeDark;
+        return (
+            <div className={`min-h-screen transition-colors duration-1000 flex flex-col items-center justify-between p-4 sm:p-8 ${isDark ? 'bg-[#080a0f] text-slate-100' : 'bg-[#f8fafc] text-slate-800'}`}>
+                <main className="my-auto py-12 flex flex-col items-center justify-center w-full">
+                    <CarLoader
+                        size={260}
+                        carStyle="sports"
+                        carColor="#ef4444"
+                        secondaryColor="#1e293b"
+                        trackStyle="minimal"
+                        showSmoke={true}
+                        showSkidMarks={true}
+                        showHeadlights={isDark}
+                        driftAngle={28}
+                        speed={3.2}
+                        loadingText={text}
+                        textPosition="bottom"
+                        theme="transparent"
+                    />
+                </main>
+                <footer className={`text-[11px] font-mono tracking-wider transition-colors duration-1000 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                    &copy; 2026 FelipCar. Todos os direitos reservados.
+                </footer>
+            </div>
+        );
+    }
+
     render() {
-        if (!this.state.authReady) {
-            return (
-                <div className="min-h-screen bg-[#1F1F21] flex items-center justify-center">
-                    <div className="animate-pulse text-zinc-400 text-sm">Carregando...</div>
-                </div>
-            );
+        if (!this.state.authReady || !this.state.loadingTimerDone) {
+            return this.renderLoadingScreen('Carregando FelipCar...');
+        }
+
+        if (this.state.adminLoading) {
+            return this.renderLoadingScreen('Acessando Painel Administrativo...');
         }
 
         switch (this.state.currentView) {
