@@ -66,7 +66,17 @@ export class PublicLandingPage extends Component<{}, PublicState> {
             clientPhone: '',
             carModel: '',
             carPlate: '',
-            businessHours: null as unknown as BusinessHoursConfig,
+            businessHours: {
+                startHour: '08:00',
+                endHour: '18:00',
+                slotIntervalMinutes: 60,
+                weekdaySchedule: 'Segunda a Sexta: 08h às 18h',
+                saturdaySchedule: 'Sábado: 08h às 17h',
+                sundaySchedule: 'Domingo / Feriados: Sob Consulta',
+                lunchBreakEnabled: false,
+                lunchStartHour: '12:00',
+                lunchEndHour: '13:00',
+            },
 
             selectedDetailService: null,
 

@@ -1,5 +1,5 @@
 import { db } from '../../lib/firebase';
-import { collection, getDocs, getDoc, doc, addDoc, updateDoc, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc, addDoc, updateDoc, query, where } from 'firebase/firestore';
 import { Appointment, AppointmentStatus } from '../../domain/entities/Appointment';
 
 type FirestoreAppointmentData = {
@@ -29,8 +29,7 @@ function mapToAppointment(id: string, data: FirestoreAppointmentData): Appointme
 
 export class FirestoreAppointmentRepository {
   async getAll(): Promise<Appointment[]> {
-    const q = query(collection(db, 'appointments'), orderBy('date', 'asc'));
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocs(collection(db, 'appointments'));
     return snapshot.docs.map(d => mapToAppointment(d.id, d.data() as FirestoreAppointmentData));
   }
 

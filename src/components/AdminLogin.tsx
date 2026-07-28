@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import { auth } from '../lib/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { Shield, Eye, EyeOff, LogIn, UserPlus, AlertTriangle } from 'lucide-react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { Shield, Eye, EyeOff, LogIn, AlertTriangle } from 'lucide-react';
 
 type LoginProps = {
     onLogin: () => void;
@@ -10,9 +10,7 @@ type LoginProps = {
 type LoginState = {
     email: string;
     password: string;
-    confirmPassword: string;
     showPassword: boolean;
-    isSignup: boolean;
     error: string;
     loading: boolean;
 };
@@ -25,55 +23,33 @@ export class AdminLogin extends Component<LoginProps, LoginState> {
         this.state = {
             email: '',
             password: '',
-            confirmPassword: '',
             showPassword: false,
-            isSignup: false,
             error: '',
             loading: false,
         };
     }
 
-    handleSubmit = async (e: React.FormEvent) => {
+    handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        const { email, password, confirmPassword, isSignup } = this.state;
+        const { email, password } = this.state;
 
         if (!email.trim() || !password.trim()) {
             this.setState({ error: 'Preencha email e senha.' });
             return;
         }
 
-        if (isSignup && password.length < 6) {
-            this.setState({ error: 'A senha deve ter no mínimo 6 caracteres.' });
-            return;
-        }
-
-        if (isSignup && password !== confirmPassword) {
-            this.setState({ error: 'As senhas não conferem.' });
-            return;
-        }
-
         this.setState({ loading: true, error: '' });
 
         try {
-            if (isSignup) {
-                await createUserWithEmailAndPassword(auth, email.trim(), password);
-            } else {
-                await signInWithEmailAndPassword(auth, email.trim(), password);
-            }
+            await signInWithEmailAndPassword(auth, email.trim(), password);
             this.props.onLogin();
         } catch (err: any) {
             const code = err.code;
             let msg: string;
             if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password') {
                 msg = 'Email ou senha inválidos.';
-            } else if (code === 'auth/email-already-in-use') {
-                msg = 'Este email já está em uso. Faça login.';
-            } else if (code === 'auth/weak-password') {
-                msg = 'A senha deve ter no mínimo 6 caracteres.';
             } else if (code === 'auth/too-many-requests') {
                 msg = 'Muitas tentativas. Tente novamente mais tarde.';
-            } else if (code === 'auth/operation-not-allowed') {
-                msg = 'Cadastro desabilitado. Crie o admin pelo Firebase Console.';
             } else {
                 msg = 'Erro ao fazer login. Tente novamente.';
             }
@@ -83,12 +59,8 @@ export class AdminLogin extends Component<LoginProps, LoginState> {
         }
     };
 
-    toggleMode = () => {
-        this.setState(prev => ({ isSignup: !prev.isSignup, error: '' }));
-    };
-
     render() {
-        const { email, password, confirmPassword, showPassword, isSignup, error, loading } = this.state;
+        const { email, password, showPassword, error, loading } = this.state;
 
         return (
             <div className="min-h-screen bg-[#1F1F21] flex items-center justify-center p-4">
@@ -101,7 +73,7 @@ export class AdminLogin extends Component<LoginProps, LoginState> {
                     </div>
 
                     <form
-                        onSubmit={this.handleSubmit}
+                        onSubmit={this.handleLogin}
                         className="bg-[#2A2A2D] rounded-2xl border border-zinc-800 shadow-md p-8 space-y-5"
                     >
                         <div className="flex items-center gap-3 pb-4 border-b border-zinc-800">
@@ -109,12 +81,8 @@ export class AdminLogin extends Component<LoginProps, LoginState> {
                                 <Shield size={20} className="text-red-500" />
                             </div>
                             <div>
-                                <h2 className="font-bold text-white text-lg">
-                                    {isSignup ? 'Criar Conta' : 'Acesso Restrito'}
-                                </h2>
-                                <p className="text-xs text-zinc-400">
-                                    {isSignup ? 'Crie sua conta de administrador' : 'Faça login para continuar'}
-                                </p>
+                                <h2 className="font-bold text-white text-lg">Acesso Restrito</h2>
+                                <p className="text-xs text-zinc-400">Faça login para continuar</p>
                             </div>
                         </div>
 
@@ -161,46 +129,17 @@ export class AdminLogin extends Component<LoginProps, LoginState> {
                             </div>
                         </div>
 
-                        {isSignup && (
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
-                                    Confirmar Senha
-                                </label>
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={confirmPassword}
-                                    onChange={e => this.setState({ confirmPassword: e.target.value })}
-                                    placeholder="••••••••"
-                                    className="w-full bg-[#1F1F21] border border-zinc-700/80 rounded-xl px-4 py-3 text-white text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500/60 transition-all"
-                                />
-                            </div>
-                        )}
-
                         <button
                             type="submit"
                             disabled={loading}
                             className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white font-bold rounded-xl px-4 py-3 text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
                         >
                             {loading ? (
-                                <span className="animate-pulse">Aguarde...</span>
-                            ) : isSignup ? (
-                                <><UserPlus size={16} /> Criar Conta</>
+                                <span className="animate-pulse">Entrando...</span>
                             ) : (
                                 <><LogIn size={16} /> Entrar</>
                             )}
                         </button>
-
-                        <div className="text-center pt-2 border-t border-zinc-800">
-                            <button
-                                type="button"
-                                onClick={this.toggleMode}
-                                className="text-xs text-zinc-400 hover:text-red-400 transition-colors cursor-pointer"
-                            >
-                                {isSignup
-                                    ? 'Já tem conta? Faça login'
-                                    : 'Primeiro acesso? Crie sua conta'}
-                            </button>
-                        </div>
                     </form>
                 </div>
             </div>

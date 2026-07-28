@@ -1,5 +1,5 @@
 import { db } from '../../lib/firebase';
-import { collection, getDocs, getDoc, doc, addDoc, updateDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc, addDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { Review } from '../../domain/entities/Review';
 
 type FirestoreReviewData = {
@@ -27,19 +27,16 @@ function mapToReview(id: string, data: FirestoreReviewData): Review {
 
 export class FirestoreReviewRepository {
   async getAll(): Promise<Review[]> {
-    const q = query(collection(db, 'reviews'), orderBy('date', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => mapToReview(d.id, d.data() as FirestoreReviewData));
+    const snapshot = await getDocs(collection(db, 'reviews'));
+    const reviews = snapshot.docs.map(d => mapToReview(d.id, d.data() as FirestoreReviewData));
+    return reviews.sort((a, b) => b.date.localeCompare(a.date));
   }
 
   async getPublicVisible(): Promise<Review[]> {
-    const q = query(
-      collection(db, 'reviews'),
-      where('hidden', '==', false),
-      orderBy('date', 'desc')
-    );
+    const q = query(collection(db, 'reviews'), where('hidden', '==', false));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => mapToReview(d.id, d.data() as FirestoreReviewData));
+    const reviews = snapshot.docs.map(d => mapToReview(d.id, d.data() as FirestoreReviewData));
+    return reviews.sort((a, b) => b.date.localeCompare(a.date));
   }
 
   async add(review: Review): Promise<void> {
