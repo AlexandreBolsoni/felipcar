@@ -1988,7 +1988,7 @@ export class AdminDashboard extends Component<AdminProps, AdminState> {
                     isDark ? 'bg-[#1F1F21] border-zinc-800' : 'bg-white border-gray-200'
                 }`}>
                     <div>
-                        <h1 className="text-lg font-black tracking-tight text-red-600">FELIP<span className={isDark ? 'text-white' : 'text-gray-900'}>CAR</span> <span className="text-xs font-semibold text-zinc-400">Admin</span></h1>
+                        <h1 className="text-lg font-black tracking-tight text-red-600">FELIP<span className={isDark ? 'text-white' : 'text-gray-900'}>CAR</span> <span className="text-xs font-semibold text-zinc-400">Administrativo</span></h1>
                     </div>
                     <div className="flex items-center gap-2">
                         <button 
@@ -2010,7 +2010,7 @@ export class AdminDashboard extends Component<AdminProps, AdminState> {
                 }`}>
                     <div className="mb-10">
                         <h1 className="text-2xl font-bold tracking-tighter text-red-600">FELIP<span className={isDark ? 'text-white' : 'text-gray-900'}>CAR</span></h1>
-                        <p className={`text-[10px] tracking-[3px] uppercase mt-1 ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Estética Automotiva</p>
+                        <p className={`text-[10px] tracking-[3px] uppercase mt-1 ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Administrativo</p>
                     </div>
                     
                     <nav className="flex flex-col gap-2 flex-grow">
