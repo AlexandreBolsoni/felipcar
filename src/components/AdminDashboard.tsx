@@ -9,6 +9,7 @@ import { Service, DurationUnit, PriceType } from '../domain/entities/Service';
 import { Appointment } from '../domain/entities/Appointment';
 import { Review } from '../domain/entities/Review';
 import { CalendarView } from './CalendarView';
+import { InstallPWA } from './InstallPWA';
 import { getOperatingHours, getSlotInfo, checkBookingConflict, minutesToTime } from '../lib/scheduleUtils';
 
 type AdminProps = {
@@ -1991,6 +1992,7 @@ export class AdminDashboard extends Component<AdminProps, AdminState> {
                         <h1 className="text-lg font-black tracking-tight text-red-600">FELIP<span className={isDark ? 'text-white' : 'text-gray-900'}>CAR</span> <span className="text-xs font-semibold text-zinc-400">Administrativo</span></h1>
                     </div>
                     <div className="flex items-center gap-2">
+                        <InstallPWA isDark={isDark} />
                         <button 
                             onClick={this.props.onLogout}
                             className={`p-2 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${
